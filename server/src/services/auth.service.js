@@ -59,20 +59,26 @@ export const emailLogin = async (email, password) => {
 export const googleLogin = async (credential) => {
   const googleUser = await verifyGoogleToken(credential);
 
-  let user = await User.findOneAndUpdate(
-    { googleId: googleUser.googleId },
-    {
+  let user = await User.findOne({
+    $or: [{ googleId: googleUser.googleId }, { email: googleUser.email }],
+  });
+
+  if (!user) {
+    user = new User({
       googleId: googleUser.googleId,
       email: googleUser.email,
       name: googleUser.name,
       picture: googleUser.picture,
-      lastLogin: new Date(),
-    },
-    {
-      returnDocument: "after",
-      upsert: true,
-    },
-  );
+    });
+  } else {
+    user.googleId = googleUser.googleId;
+    user.email = googleUser.email;
+    user.name = googleUser.name;
+    user.picture = googleUser.picture;
+  }
+
+  user.lastLogin = new Date();
+  await user.save();
 
   const token = generateToken(user);
 
